@@ -1,0 +1,401 @@
+---
+title: "IMCMapper-Functions"
+author: "Nicolas Damond"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{IMCMapper-Functions}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+```{r Libraries, include = FALSE}
+library('data.table')
+library("EBImage")
+library(IMCMapper)
+```
+
+
+# MAIN FUNCTIONS
+
+**- CellMap:** Displays 1 to 3 cell populations
+
+**- ChannelHM:** Heatmap 1 to 3 channels
+
+**- CellsAndCounts:** Heatmap 1 channel + highlight the borders of 1 to 3 cell populations
+
+**- ClusterDisplay:** Display cell clusters (and unique continuous values)
+
+**- IMCDisplay:** Display 1 to 3 raw IMC images
+
+**- CellsandIMC:** Display 1 IMC image + highlight the borders of 1 to 3 cell populations
+
+**- IMCandCells:** Display 1 to 3 IMC images + highlight the borders of 1 cell population  
+  
+***
+
+# GENERAL REQUIREMENTS
+
+### R packages
+- "data.table"  
+- "EBImage"  
+
+### CellProfiler data
+- Cell masks (16-bit tiff files).
+- When exporting CSV from CellProfiler, in "Select measurements" > "Image", you have to select FileName, PathName and Metadata.
+- This will generate an "Image.csv" file, which is required to run this script.
+
+### A data set in the data.table format
+- The cell objects must be the same as those used to create the masks in CellProfiler.
+- Must contain an "image" column where the values correspond to the image names in the "Metadata" column of your "Image.csv" file.
+- Must contain a "cell id" column in the format "###_nnn", where ### is the name of the image in the "image" column and nnn is the number of the cell.
+
+```{r Load cell data, include=FALSE}
+exp.prefix  <- 'All'
+folder.project <- '/home/nicolasd/Data/CM2017/'
+folder.out <- file.path(folder.project, 'Routput',  exp.prefix, .Platform$file.sep)
+
+fn.cells       <- list.files(folder.out, full.names = TRUE, pattern = "Cell_Markers.csv")
+fn.celltypes   <- list.files(folder.out, full.names = TRUE, pattern = "CellTypes_ilastik.csv")
+fn.meta        <- list.files(folder.out, full.names = TRUE, pattern = "Cell_Metadata.csv")
+fn.distance    <- list.files(folder.out, full.names = TRUE, pattern = "Cell_Distance.csv")
+
+if (file.exists(fn.cells)) cells <- fread(fn.cells, header = T)
+if (file.exists(fn.celltypes)) celltypes <- fread(fn.celltypes, header = T)
+if (file.exists(fn.meta)) metadata <- fread(fn.meta, header = T)
+if (file.exists(fn.distance)) distance <- fread(fn.distance, header = T)
+
+cells <- merge(cells[, .(id, core, channel, c_counts_scaled)], celltypes[, .(id, core, CellType)], by=c('id','core'), all.x=T)
+cells <- merge(cells, metadata[, .(id, core, case)], by=c('id', 'core'))
+cells <- merge(cells, unique(distance[, .(id, dist)]), by='id')
+```
+
+### Example of cell data
+```{r Cell data}
+cells
+```
+  
+  
+***
+  
+# OPTIONAL ARGUMENTS
+### Those arguments can be passed to any of the functions below
+
+**Options for image display**  
+*method* --- 
+'raster' or 'browser' option from the EBImage package to display the images in a separate (new tab) JavaScript viewer ('browser') or directly in R ('raster') (default = 'raster').
+
+**Arguments for saving the images**  
+*save* --- 
+TRUE/FALSE: should the images be saved (default = FALSE).
+
+*path* --- 
+path to the folder in which the images should be saved. If the folder does not exist it will be created (default = working directory).
+
+*type* --- 
+'png', 'jpeg' or 'tiff': format of the saved images (default = 'png').
+
+**Arguments for legend customization**  
+*leg* --- 
+TRUE/FALSE: should a color legend be displayed. The legend will be displayed as a separate image (default = TRUE). If "save" is set to TRUE, the legend will be saved together with the pictures as a .png image.
+
+*legend* --- 
+vector containing the names of the elements displayed in the legend
+
+*fill* --- 
+vector containing the colors to be displayed in the legend
+
+*border* --- 
+vector containing the color of the legend borders
+
+*cex* --- 
+size of the text of the legend (character expansion)
+
+*+ any other argument taken by the "legend" function (see ?legend)*
+
+**Arguments for label customization**  
+*label* --- 
+TRUE/FALSE: should the name of the image be displayed on the image (default = TRUE). Doesn't work with the 'browser' method. The label is also not displayed on saved images.
+
+*label.txt* --- 
+text to be display on the image label. The same text will be displayed on all images (default = name of the image)
+
+*label.color* --- 
+color of the image label displayed on the image
+
+*label.cex* --- 
+size of the text of the image name label (character expansion)
+
+*label.x* --- 
+x position of the image name label
+
+*label.y* --- 
+y position of the image name label
+
+***  
+  
+
+# FUNCTIONS
+
+## CellMap
+Display 1 to 3 cell populations
+```{r CellMap}
+# Vectors containing the ids of cells to display
+cell.pop.1 <- unique(cells[core %in% c("A01","B01","E08") & CellType=='beta']$id)
+cell.pop.2 <- unique(cells[core %in% c("A01","B01","E08") & CellType=='alpha']$id)
+cell.pop.3 <- unique(cells[core %in% c("A01","B01","E08") & CellType=='delta']$id)
+
+CellMap(x = cells,
+        id.col = 'id',
+        cell1 = cell.pop.1,
+        cell2 = cell.pop.2,
+        cell3 = cell.pop.3,
+        meta = '/home/nicolasd/Data/CM2017/cpoutput/All/All_ImagePathMapping.csv',
+        path.col = 'ObjectsPathName_FilteredRescaledCellsExpand',
+        file.col = 'ObjectsFileName_FilteredRescaledCellsExpand',
+        slide.col = 'Metadata_Slide',
+        borders = TRUE,
+        legend = c('beta', 'alpha', 'delta'),
+        label.color = "cyan",
+        cex=1,
+        label.cex=2,
+        label.x=85
+        # Optional arguments to save the images
+        # save = TRUE,
+        # path = '/home/nicolasd/Data/CM2017/CellMapper'
+)
+```
+
+
+
+## ChannelHM
+Heatmap 1 to 3 channels
+```{r ChannelHM}
+# List of images to display
+image.list <- c("A01","B01","E08")
+
+ChannelHM(x = cells,
+          id.col = 'id',
+          counts.col = 'c_counts_scaled',
+          channel.col = 'channel',
+          image.col = 'core',
+          im.list = image.list,
+          ch1 = 'PIN',
+          ch2 = 'GCG',
+          # ch3 = 'SST',
+          bcg1 = c(0, 4, 2),
+          bcg2 = c(0, 4, 2),
+          bcg3 = c(0, 4, 2),
+          meta = '/home/nicolasd/Data/CM2017/cpoutput/All/All_ImagePathMapping.csv',
+          path.col = 'ObjectsPathName_FilteredRescaledCellsExpand',
+          file.col = 'ObjectsFileName_FilteredRescaledCellsExpand',
+          slide.col = 'Metadata_Slide',
+          borders = FALSE,
+          legend = c("Proinsulin", "Glucagon", "Somatostatin"),
+          cex=1,
+          label.cex=2,
+          label.x=85
+          # save = TRUE,
+          # path = '/home/nicolasd/Data/CM2017/CellMapper'
+)
+```
+
+
+
+## CellsAndCounts
+Heatmap one channel and highlight the borders of 1 to 3 cell populations.  
+Known bug: when intensity is high (white cells), the borders of cells that should be displayed become dimmer and can be hard/impossible to see.
+```{r CellsAndCounts}
+# Vectors containing the ids of cells to display
+cell.pop.1 <- unique(cells[core %in% c("A01","B01","E08") & CellType=='beta']$id)
+cell.pop.2 <- unique(cells[core %in% c("A01","B01","E08") & CellType=='alpha']$id)
+cell.pop.3 <- unique(cells[core %in% c("A01","B01","E08") & CellType=='delta']$id)
+
+CellsAndCounts(x = cells,
+               id.col = 'id',
+               image.col = 'core',
+               channel.col = 'channel',
+               counts.col = 'c_counts_scaled',
+               ch = 'PIN',
+               cell1 = cell.pop.1,
+               cell2 = cell.pop.2,
+               cell3 = cell.pop.3,
+               meta = '/home/nicolasd/Data/CM2017/cpoutput/All/All_ImagePathMapping.csv',
+               path.col = 'ObjectsPathName_FilteredRescaledCellsExpand',
+               file.col = 'ObjectsFileName_FilteredRescaledCellsExpand',
+               slide.col = 'Metadata_Slide',
+               bcg = c(0, 2, 1),
+               legend = c("Proinsulin", "Beta cells", "Alpha cells", "Delta cells"),
+               cex=1,
+               label.cex=2,
+               label.x=85
+               # save = TRUE,
+               # path = '/home/nicolasd/Data/CM2017/CellMapper'
+)
+```
+
+
+
+## ClusterDisplay
+Display cell clusters or cell types
+```{r ClusterDisplay}
+# List of images to display
+image.list <- c("A01","B01","E08")
+
+ClusterDisplay(x = cells,
+               im.list = image.list,
+               id.col = 'id',
+               image.col = 'core',
+               cluster.col = 'CellType',
+               meta = '/home/nicolasd/Data/CM2017/cpoutput/All/All_ImagePathMapping.csv',
+               path.col = 'ObjectsPathName_FilteredRescaledCellsExpand',
+               file.col = 'ObjectsFileName_FilteredRescaledCellsExpand',
+               slide.col = 'Metadata_Slide',
+               borders = FALSE,
+               bcg=c(0,1,1),
+               label.color="yellow",
+               cex=0.6,
+               label.cex=2,
+               label.x=85
+               # save = TRUE,
+               # path = '/home/nicolasd/Data/CM2017/CellMapper'
+)
+```
+
+
+### Optional palettes for cluster display
+```{r, fig.width=7, fig.height=7}
+# Optional palettes from the RColorBrewer package
+require(RColorBrewer)
+RColorBrewer::display.brewer.all()
+
+# # Optional palettes from the viridis package
+# require(viridisLite)
+# image(1:400, 1, as.matrix(1:400), col = c(viridis(100, option = "D"), rep("#FFFFFF",10), viridis(100, option = "A"), rep("#FFFFFF",10),
+#                                           viridis(100, option = "B"), rep("#FFFFFF",10), viridis(100, option = "C")), 
+#       main = c("viridis   magma   inferno   plasma"),
+#       xlab = "", ylab = "", xaxt = "n", yaxt = "n", bty = "n")
+
+# Example of custom palette
+color_clusters <- c("#DC050C", "#FB8072", "#1965B0", "#7BAFDE", "#882E72",
+                   "#B17BA6", "#FF7F00", "#FDB462", "#E7298A", "#E78AC3",
+                   "#33A02C", "#B2DF8A", "#55A1B1", "#8DD3C7", "#A6761D",
+                   "#E6AB02", "#7570B3", "#BEAED4", "#666666", "#999999",
+                   "#aa8282", "#d4b7b7", "#8600bf", "#ba5ce3", "#808000",
+                   "#aeae5c", "#1e90ff", "#00bfff", "#56ff0d", "#ffff00")
+
+# plot(1, type="n", axes=FALSE, xlab="", ylab="")
+# legend(legend=seq(1:30), x=1, y=1, fill=color_clusters, ncol=4, cex=1)
+```
+
+
+
+## IMCDisplay
+Display one to three channel(s) from an IMC image
+```{r IMCDisplay}
+# List of images to display
+image.list <- c("A01","B01","E08")
+
+IMCDisplay(x = cells,
+           im.list = image.list,
+           image.col = 'core',
+           ch1 = 'Syn',
+           ch2 = 'SMA',
+           ch3 = 'CK19',
+           bcg1 = c(0, 0.05, 1),
+           bcg2 = c(0, 0.3, 1),
+           bcg3 = c(0, 1, 1),
+           meta = '/home/nicolasd/Data/CM2017/cpoutput/All/All_ImagePathMapping.csv',
+           path.col = 'ObjectsPathName_FilteredRescaledCellsExpand',
+           file.col = 'ObjectsFileName_FilteredRescaledCellsExpand',
+           slide.col = 'Metadata_Slide',
+           borders = FALSE,
+           legend = c("Synaptophysin", "SMA", "Cytokeratin 19"),
+           cex=1,
+           label.cex=2,
+           label.x=85
+           # method = 'browser'
+           # save = TRUE,
+           # path = '/home/nicolasd/Data/CM2017/CellMapper'
+)
+```
+
+
+
+## CellsandIMC
+Display 1 IMC image + highlight the borders of 1 to 3 cell populations
+
+### Additional requirements
+The channel images should be in the same folder as the masks (one channel per image), similar to the histoCAT folder structure
+
+```{r CellsandIMC}
+# Vectors containing the ids of cells to display
+cell.pop.1 <- unique(cells[core %in% c("A01","B01","E08") & CellType=='beta']$id)
+cell.pop.2 <- unique(cells[core %in% c("A01","B01","E08") & CellType=='alpha']$id)
+cell.pop.3 <- unique(cells[core %in% c("A01","B01","E08") & CellType=='delta']$id)
+
+CellsandIMC(x = cells,
+            id.col = 'id',
+            image.col = 'core',
+            ch = 'Pin',
+            cell1 = cell.pop.1,
+            cell2 = cell.pop.2,
+            cell3 = cell.pop.3,
+            meta = '/home/nicolasd/Data/CM2017/cpoutput/All/All_ImagePathMapping.csv',
+            path.col = 'ObjectsPathName_FilteredRescaledCellsExpand',
+            file.col = 'ObjectsFileName_FilteredRescaledCellsExpand',
+            slide.col = 'Metadata_Slide',
+            bcg = c(0, 0.05, 1),
+            legend = c("Proinsulin", "Beta cells", "Alpha cells", "Delta cells"),
+            cex=1,
+            label.cex=2,
+            label.x=85
+            # save = TRUE,
+            # path = '/home/nicolasd/Data/CM2017/CellMapper'
+)
+```
+
+
+
+## IMCandCells
+Display 1 IMC image + highlight the borders of 1 to 3 cell populations
+
+### Additional requirements
+The channel images should be in the same folder as the masks (one channel per image), similar to the histoCAT folder structure
+
+```{r IMCandCells}
+# Vectors containing the ids of cells to display
+cell.pop.1 <- unique(cells[core %in% c("A01","B01","E08") & CellType=='beta']$id)
+
+IMCandCells(x = cells,
+            id.col = 'id',
+            image.col = 'core',
+            cell1 = cell.pop.1,
+            ch1 = 'Pin',
+            ch2 = 'Gcg',
+            ch3 = 'Sst',
+            bcg1 = c(0, 0.05, 1),
+            bcg2 = c(0, 0.1, 1),
+            bcg3 = c(0, 0.2, 1),
+            meta = '/home/nicolasd/Data/CM2017/cpoutput/All/All_ImagePathMapping.csv',
+            path.col = 'ObjectsPathName_FilteredRescaledCellsExpand',
+            file.col = 'ObjectsFileName_FilteredRescaledCellsExpand',
+            slide.col = 'Metadata_Slide',
+            legend = c("Beta cells", "Proinsulin", "Glucagon", "Somatostatin"),
+            cex=1,
+            label.cex=2,
+            label.x=85
+            # method = 'browser'
+            # save = TRUE,
+            # path = '/home/nicolasd/Data/CM2017/CellMapper'
+)
+```

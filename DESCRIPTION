@@ -1,0 +1,16 @@
+Package: IMCMapper
+Type: Package
+Title: IMCMapper
+Version: 0.1.0
+Authors@R: person("Nicolas", "Damond", email = "nicolas.damond@uzh.ch", role = c("aut", "cre"))
+Depends: R (>= 3.4.1)
+Description: Functions for displaying IMC images and data in R
+Imports:
+    EBImage,
+    data.table
+Suggests: RColorBrewer, viridis, knitr, rmarkdown
+License: GPL (>=3)
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.0.1
+VignetteBuilder: knitr
