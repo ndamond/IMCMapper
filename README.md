@@ -1,3 +1,10 @@
+
+**IMCMapper** is now deprecated, please use **cytomapper** instead
+- Source code: [Github](https://github.com/BodenmillerGroup/cytomapper/)
+- R package: [Bioconductor](https://www.bioconductor.org/packages/release/bioc/html/cytomapper.html)
+- Publication: [Bioinformatics](https://doi.org/10.1093/bioinformatics/btaa1061)
+
+
 # MAIN FUNCTIONS
 
 **- CellMap:** Displays 1 to 3 cell populations
